@@ -1,0 +1,99 @@
+options:
+    main:<##e31b23>
+    other: <##f03e52>
+    heart: ❤
+    
+on command:
+    {ct::%player%} is set:
+        command is not "ct" or "combattag":
+            player's gamemode is not creative
+            cancel event
+            player command "ct"
+
+on damage:
+    attacker is player
+    victim is player
+    if {team::%attacker%} = {team::%victim%}:
+        send "{@main}&lTEAMS &7You cannot hit team members." to attacker
+        cancel event
+        stop
+
+    {ct::%victim%} != 15 seconds:
+        ct(victim)
+    {ct::%attacker%} != 15 seconds:
+        ct(attacker)
+
+on disconnect:
+    {ct::%player%} is set:
+        delete {ct::%player%}
+        kill player
+        death(player)
+
+function zombie(l: location):
+    set {_origin} to {_l}
+    add 20 to y-coord of {_l}
+    set yaw of {_l} to 180
+    spawn giant at {_l} ~ vector(2,0,5)
+    add "{Invulnerable:1,HandItems:[{id:""netherite_sword"",Count:1b}]}" to entity-nbt of last spawned giant
+    set {_giant} to last spawned giant
+    set {_team} to team named "nocllsn"
+    add {_giant} to team entries of {_team}
+    set display name of {_giant} to "Dinnerbone"
+    while {_giant} is alive:
+        set {_l} to location of {_giant}
+        remove 1 from y-coord of {_l}
+        teleport {_giant} to {_l}
+        kill {_giant} if y-coord of {_l} = y-coord of {_origin}-10
+        wait 1 tick
+
+on death:
+    set death message to ""
+    victim is player
+    zombie(location of victim)
+    event-damagecause is fall:
+        send "{@other}%victim% {@other}%health of victim% {@other}{@heart} {@main}fell to their death." to all players
+    attacker is player
+    death(victim)
+    kill(attacker)
+    scoreboard(victim)
+    scoreboard(attacker)
+    give attacker giveHeart(attacker) if {hearts::%victim%} > 0.5
+    delete {ct::%victim%}
+
+    loop enchantments of attacker's tool:
+        add "&7%loop-value%" to {_lore::*}
+    set {_lore} to join {_lore::*} with newline
+    send formatted "{@other}%attacker% {@other}%health of attacker% {@other}{@heart} {@main}killed {@other}%victim% {@other}%health of victim% {@other}{@heart} {@main}using &8[&f<tooltip:%{_lore}%>%attacker's tool%&8]" to all players
+    send formatted "{@other}%attacker% {@other}%health of attacker% {@other}{@heart} {@main}killed {@other}%victim% {@other}%health of victim% {@other}{@heart} {@main}using &8[&f%attacker's tool%&8]" to all players if {_lore} contains "<none>"
+
+respawn:
+    teleport player to {spawn}
+
+function death(p: player):
+    teleport {_p} to {spawn}
+    add 1 to {deaths::%{_p}%}
+    if {hearts::%{_p}%} > 1:
+        remove 1 from {hearts::%{_p}%}
+    hearts({_p})
+
+function kill(p: player):
+    add 1 to {kills::%{_p}%}
+
+every second:
+    loop all players where [{ct::%input%} is set]:
+        if {ct::%loop-player%} < 1 second:
+            delete {ct::%loop-player%}
+            send action bar "{@main}You are no longer in combat." to loop-player
+        else:
+            send action bar "{@main}You are combat tagged for {@other}%{ct::%loop-player%}%{@main}!" to loop-player
+            remove 1 second from {ct::%loop-player%}
+
+function ct(p: player):
+    send "{@main}You are now in combat. Do not log out!" to {_p} if {ct::%{_p}%} is not set
+    set {ct::%{_p}%} to 15 seconds
+
+command /combattag:
+    aliases: /ct
+    trigger:
+        send "{@main}You are not in combat." if {ct::%player%} is not set
+        send "{@main}You are in combat for another {@other}%{ct::%player%}%{@main}!" if {ct::%player%} is set

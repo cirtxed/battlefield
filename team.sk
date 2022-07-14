@@ -1,0 +1,278 @@
+options:
+    main:<##e31b23>
+    other: <##f03e52>
+    heart: ❤
+    prefix: <##e31b23>&lTEAMS
+
+function team(p: player):
+    send " " to {_p}
+    send "                    {@prefix} &8(v1.0.0)        " to {_p}
+    send " " to {_p}
+    send "{@main}&l| {@other}/team info (team) &7&odisplays info about a team." to {_p}
+    send "{@main}&l| {@other}/team create (name) &7&ocreates a team." to {_p}
+    send "{@main}&l| {@other}/team delete &7&odeletes your team." to {_p}
+    send "{@main}&l| {@other}/team invite (player) &7&oinvites a player to your team." to {_p}
+    send "{@main}&l| {@other}/team kick (player) &7&odisplays info about a team." to {_p}
+    send "{@main}&l| {@other}/team join (player) &7&ojoins a team." to {_p}
+    send "{@main}&l| {@other}/team mod (player) &7&omakes a player to mod in your team." to {_p}
+    send "{@main}&l| {@other}/team sethome &7&osets your team's home." to {_p}
+    send "{@main}&l| {@other}/team home &7&oteleports to your team home." to {_p}
+    send " " to {_p}
+
+function sound(p: player, sound: text, volume: number = 1, pitch: number = 1):
+    play sound {_sound} with volume {_volume} and pitch {_pitch} to {_p}
+
+function sendTeam(team: text, msg: text):
+    set {_team::*} to {team::%{_team}%::owner}, {team::%{_team}%::mods::*} and {team::%{_team}%::members::*}
+    loop {_team::*}:
+        send formatted {_msg} to loop-value
+
+function getPerm(p: player, team: text) :: number:
+    return 3 if {team::%{_team}%::owner} is player
+    return 2 if {team::%{_team}%::mods::*} contains player
+    return 1
+
+function teamFull(team: text) :: boolean:
+    add {team::%{_team}%::owner} to {_size::*}
+    add {team::%{_team}%::mods::*} to {_size::*}
+    add {team::%{_team}%::members::*} to {_size::*}
+    return true if size of {_size::*} >= 10
+    return false
+
+function showTeam(p: player, team: text):
+    create gui with virtual chest inventory with 6 rows named "Team Info (%{_team}%)":
+        set {_slots::*} to (integers from 28 and 34) and (integers from 37 and 43)
+        format gui slot (integers from 0 and 54) with black stained glass pane named " "
+        format gui slot {_slots::*} with gray stained glass pane named " "
+        set {_owner} to ("%{team::%{_team}%::owner}%" parsed as player)
+        set {_icon} to "&a&l♦" if {_owner} is set
+        set {_icon} to "&c&l♦" if {_owner} is not set
+        format gui slot 4 with skull of ("%{team::%{_team}%::owner}%" parsed as offline player) named "{@main}&lTEAM OWNER &7(%{team::%{_team}%::owner} ? "N/A"%&7) %{_icon}%"
+        loop {team::%{_team}%::mods::*}:
+            add loop-value to {_mods::online::*} if "%loop-value%" parsed as player is set
+            add loop-value to {_mods::offline::*} if "%loop-value%" parsed as player is not set
+        loop {_mods::online::*} and {_mods::offline::*}:
+            add 1 to {_a}
+            set {_mod} to ("%loop-value%" parsed as player)
+            set {_icon} to "&a&l♦" if {_mod} is set
+            set {_icon} to "&c&l♦" if {_mod} is not set
+            set {_skull} to skull of ("%loop-value%" parsed as offline player)
+            format gui slot {_slots::%{_a}%} with {_skull} named "{@main}&lMOD &f%loop-value% %{_icon}%"
+        
+        loop {team::%{_team}%::members::*}:
+            add loop-value to {_members::online::*} if "%loop-value%" parsed as player is set
+            add loop-value to {_members::offline::*} if "%loop-value%" parsed as player is not set
+        loop {_members::online::*} and {_members::offline::*}:
+            add 1 to {_a}
+            set {_member} to ("%loop-value%" parsed as player)
+            set {_icon} to "&a&l♦" if {_member} is set
+            set {_icon} to "&c&l♦" if {_member} is not set
+            set {_skull} to skull of ("%loop-value%" parsed as offline player)
+            format gui slot {_slots::%{_a}%} with {_skull} named "{@other}&lMEMBER &f%loop-value% %{_icon}%"
+    
+    open last gui for {_p}
+
+on tab complete of "/team", "t", "/s", "/squad", "/is", "/island", "/gang", "/g", "/clan" and "/c":
+    set tab completions for position 1 to "create", "invite", "join", "mod", "kick", "sethome", "home", "sethome", "info", "delete" and "delete confirm"
+    if tab arg 1 = "invite":
+        set tab completions for position 2 to all players
+    else if tab arg 1 = "mod" or "kick":
+        set tab completions for position 2 to {team::%{team::%player%}%::mods::*} and {team::%{team::%player%}%::members::*}
+    else if tab arg 1 = "join" or "info":
+        set tab completions for position 2 to {team::*}
+
+command /team [<text>] [<text>]:
+    aliases: /squad, /s, /t, /is, /island, /gang, /g, /clan, /c
+    trigger:
+        arg 1 is not set:
+            team(player)
+        else if arg 1 is "create", "invite", "join", "mod" or "kick":
+            arg 2 is not set:
+                team(player)
+            else if arg 1 is "create":
+                if {team::*} contains arg 2:
+                    sound(player, "entity.villager.no")
+                    send "{@prefix} &7That name is already taken."
+                else if arg 2 is not alphanumeric:
+                    sound(player, "entity.villager.no")
+                    send "{@prefix} &7Your team name must be alphanumeric!"
+                    set {_t} to arg 2
+                    replace all " " with "" in {_t}
+                    replace all "1" with "i" in {_t}
+                else if {_t} contains "nigger", "nigga", "fuck", "shit", "faggot", "coon", "kys", "nazi" and "bitch":
+                    sound(player, "entity.villager.no")
+                    send "{@prefix} &7Your team name is inappropriate!"
+                else if {team::%player%} is set:
+                    sound(player, "entity.villager.no")
+                    send "{@prefix} &7You already have a team! Type {@main}/team leave &7to leave it."
+                else if length of arg 2 > 10:
+                    sound(player, "entity.villager.no")
+                    send "{@prefix} &7Your team name must be 10 characters or less."
+                else:
+                    set {team::%player%} to arg 2
+                    set {team::%{team::%player%}%::owner} to player
+                    send "{@prefix} &7You have created the team {@main}%{team::%player%}%&7."
+                    scoreboard(player)
+            else if arg 1 is "invite":
+                set {_player} to (arg 2 parsed as player)
+                scoreboard(player)
+                scoreboard({_player})
+                if {team::%player%} is not set:
+                    sound(player, "entity.villager.no")
+                    send "{@prefix} &7You do not have a team! Create one with {@main}/team create (name)&7."
+                else if {_player} is not set:
+                    sound(player, "entity.villager.no")
+                    send "{@prefix} &7That player is not online."
+                else if {_player} has not played before:
+                    sound(player, "entity.villager.no")
+                    send "{@prefix} &7The player {@main}%{_player}% &7has not played before."
+                else if {team::%{_player}%} is set:
+                    sound(player, "entity.villager.no")
+                    send "{@prefix} &7That player is already in a team."
+                else if getPerm(player, {team::%player%}) < 2:
+                    sound(player, "entity.villager.no")
+                    send "{@prefix} &7Inviting players requires {@main}mod or higher &7in your team."
+                else if teamFull({team::%player%}) is true:
+                    sound(player, "entity.villager.no")
+                    send "{@prefix} &7Your team is full!"
+                else:
+                    add arg 2 to {invited::%{team::%player%}%::*}
+                    send formatted "{@prefix} &7You were invited to join the team {@main}%{team::%player%}%&7. Type <command:/team join %{team::%player%}%>{@main}/team join %{team::%player%}%<reset> &7to join." to {_player}
+                    send "{@prefix} &7You invited {@main}%arg 2% &7to join your team. They have {@other}60 seconds &7to join before the invite is deleted." to player
+                    wait 60 seconds
+                    if {invited::%{team::%player%}%::*} contains {_player}:
+                        remove arg 2 from {invited::%{team::%player%}%::*}
+                        send "{@prefix} &7Your invite to join the team {@main}%{team::%player%}% &7has expired." to {_player}
+                        send "{@prefix} &7Your invite to {@main}%{_player}% &7has expired."
+            else if arg 1 is "join":
+                if {team::%player%} is set:
+                    sound(player, "entity.villager.no")
+                    send "{@prefix} &7You are already in a team!"
+                else if {team::*} does not contain arg 2:
+                    sound(player, "entity.villager.no")
+                    send "{@prefix} &7That team does not exist."
+                else if {invited::%arg 2%::*} does not contain player:
+                    sound(player, "entity.villager.no")
+                    send "{@prefix} &7You do not have an invite from that team."
+                else:
+                    sound(player, "entity.villager.celebrate")
+                    set {team::%player%} to arg 2
+                    remove player from {invited::%arg 2%::*}
+                    add player to {team::%arg 2%::members::*}
+                    sendTeam(arg 2, "{@prefix} {@main}%player% &7has joined your team.")
+                    scoreboard(player)
+            else if arg 1 is "mod":
+                set {_player} to (arg 2 parsed as offline player)
+                if {team::%player%} is not set:
+                    sound(player, "entity.villager.no")
+                    send "{@prefix} &7You are not in a team!"
+                else if {team::%{_player}%} != {team::%player%}:
+                    sound(player, "entity.villager.no")
+                    send "{@prefix} &7That player is not in your team."
+                else if {team::%{team::%player%}%::owner} is not player:
+                    sound(player, "entity.villager.no")
+                    send "{@prefix} &7You cannot promote players in your team."
+                else if {team::%{team::%player%}%::mods::*} contains arg 2:
+                    sound({_player}, "entity.villager.celebrate")
+                    sound(player, "entity.villager.celebrate")
+                    sendTeam({team::%player%}, "{@prefix} {@main}%arg 2% &7has been demoted from {@other}Mod &7to {@other}Member&7.")
+                    remove arg 2 from {team::%{team::%player%}%::mods::*}
+                    add arg 2 to {team::%{team::%player%}%::members::*}
+                else:
+                    sound({_player}, "entity.wolf.whine")
+                    sound(player, "entity.villager.celebrate")
+                    sendTeam({team::%player%}, "{@prefix} {@main}%arg 2% &7has been promoted to {@other}Team Mod&7.")
+                    remove arg 2 from {team::%{team::%player%}%::members::*}
+                    add arg 2 to {team::%{team::%player%}%::mods::*}
+            else if arg 1 is "kick":
+                set {_player} to (arg 2 parsed as offline player)
+                if {team::%player%} is not set:
+                    sound(player, "entity.villager.no")
+                    send "{@prefix} &7You are not in a team!"
+                else if {team::%{_player}%} != {team::%player%}:
+                    sound(player, "entity.villager.no")
+                    send "{@prefix} &7That player is not in your team."
+                else if getPerm(player, {team::%player%}) <= 1:
+                    sound(player, "entity.villager.no")
+                    send "{@prefix} &7You cannot kick players from your team."
+                else if {team::%{team::%player%}%::owner} is {_player}:
+                    sound(player, "entity.villager.no")
+                    send "{@prefix} &7You cannot kick your team owner."
+                else:
+                    sound(player, "entity.wolf.whine")
+                    sendTeam({team::%player%}, "{@prefix} {@main}%arg 2% &7has been kicked from your team.")
+                    remove {_player} from {team::%{team::%player%}%::mods::*} and {team::%{team::%player%}%::members::*}
+                    delete {team::%{_player}%}
+                    scoreboard({_player})
+                    scoreboard(player)
+        else if arg 1 is "delete":
+            if arg 2 is "confirm":
+                {team::%{team::%player%}%::deleteConfirm} is set
+                sendTeam({team::%player%}, "{@prefix} {@main}%player% &7has disbanded your team.")
+                broadcast "{@prefix} {@main}%player% &7has disbanded the team {@other}%{team::%player%}%"
+                loop {team::%{team::%player%}%::members::*} and {team::%{team::%player%}%::mods::*}:
+                    scoreboard(loop-value)
+                    delete {team::%loop-value%}
+                delete {team::%player%}
+                scoreboard(player)
+            if {team::%player%} is not set:
+                sound(player, "entity.villager.no")
+                send "{@prefix} &7You do not have a team!"
+            else if {team::%{team::%player%}%::owner} is not player:
+                sound(player, "entity.villager.no")
+                send "{@prefix} &7You cannot delete your team. Leave it with {@main}/team leave %{team::%player%}%"
+            else if {team::%{team::%player%}%::deleteConfirm} is not set:
+                sound(player, "entity.wolf.whine")
+                send "{@prefix} &7You are about to delete your team. Type {@main}/team delete confirm &7to confirm. In {@main}60 seconds &7this will expire."
+                set {team::%{team::%player%}%::deleteConfirm} to true
+                wait 60 seconds
+                if {team::%{team::%player%}%::deleteConfirm} is true:
+                    delete {team::%{team::%player%}%::deleteConfirm}
+                    send "{@prefix} &7Your team delete confirmation has expired."
+        else if arg 1 is "leave":
+            if {team::%player%} is not set:
+                sound(player, "entity.villager.no")
+                send "{@prefix} &7You do not have a team!"
+            else if {team::%{team::%player%}%::owner} is player:
+                sound(player, "entity.villager.no")
+                send "{@prefix} &7You cannot leave your team. Delete it with {@main}/team delete&7."
+            else:
+                sound(player, "entity.wolf.whine")
+                sendTeam({team::%player%}, "{@prefix} {@main}%player% &7left your team.")
+                remove player from {team::%{team::%player%}%::mods::*} and {team::%{team::%player%}%::members::*}
+                delete {team::%player%}
+            scoreboard(player)
+        else if arg 1 is "info":
+            if arg 2 is not set:
+                if {team::%player%} is not set:
+                    sound(player, "entity.villager.no")
+                    send "{@prefix} &7You do not have a team!"
+                else:
+                    showTeam(player, "%{team::%player%}%")
+            else if {team::*} does not contain arg 2:
+                sound(player, "entity.villager.no")
+                send "{@prefix} &7That team does not exist"
+            else:
+                showTeam(player, "%arg 2%")
+        else if arg 1 is "sethome":
+            if {team::%player%} is not set:
+                sound(player, "entity.villager.no")
+                send "{@prefix} &7You do not have a team!"
+            else if {team::%{team::%player%}%::owner} is not player:
+                sound(player, "entity.villager.no")
+                send "{@prefix} &7You cannot set the team home. Only the team owner has permission to this."
+            else:
+                set {team::%{team::%player%}%::home} to location of player
+                sound(player, "entity.villager.celebrate")
+                sendTeam({team::%player%}, "{@prefix} {@main}%player% &7updated the team home. <tooltip:{@main}%{team::%{team::%player%}%::home}%>&8[hover]<reset>")
+        else if arg 1 is "home":
+            if {team::%player%} is not set:
+                sound(player, "entity.villager.no")
+                send "{@prefix} &7You do not have a team!"
+            else if {team::%{team::%player%}%::home} is not set:
+                sound(player, "entity.villager.no")
+                send "{@prefix} &7You do not have a team home. Tell your team owner to set one with {@main}/team sethome&7."
+            else:
+                sound(player, "entity.villager.celebrate")
+                send "{@prefix} &7Teleported to the team home."
+                teleport player to {team::%{team::%player%}%::home}

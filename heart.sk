@@ -1,0 +1,100 @@
+options:
+    main:<##e31b23>
+    other: <##f03e52>
+    heart: ❤
+
+function hearts(p: player):
+    set {_p}'s max health to getHearts({_p})
+
+function getHearts(p: player) :: number:
+    return {hearts::%{_p}%} ? 10
+
+function giveHeart(p: player, amount: integer = 1) :: item:
+    return {_amount} of nether wart of fire protection 1 named "{@main}&lHeart" with lore "{@other}Information:%nl%  &7Adds 1 heart to%nl%  &7your maximum health.%nl% %nl%&7Click to apply." with all flags hidden
+
+function giveHalfHeart(p: player, amount: integer = 1) :: item:
+    return {_amount} of fermented spider eye of fire protection 1 named "{@main}&lHalf Heart" with lore "{@other}Information:%nl%  &7Craft with another {@other}half heart%nl%  &7to gain a {@other}full heart%nl% %nl%&7(/recipes)" with all flags hidden
+
+on right click:
+    set {_name} to uncolored name of player's tool
+    {_name} is "Heart"
+    player is holding nether wart
+    getHearts(player) >= 30:
+        play sound "entity.villager.no" to player
+        send "{@main}&lHEARTS &7You already have max hearts."
+    else:
+        set {_heart} to health of player
+        set {_a} to max health of player
+        remove 1 of player's tool from player's inventory
+        add 1 to {hearts::%player%}
+        play sound "entity.player.levelup" with volume 1 and pitch 2 to player
+        heal player if {_a} = {_heart}
+        hearts(player)
+        scoreboard(player)
+
+command /giveheart [<player>] [<integer>]:
+    permission: admin
+    permission message: &cYou don't have access to that command.
+    trigger:
+        set {_p} to arg 1 ? player
+        set {_amount} to arg 2 ? 1
+        give {_p} giveHeart({_p}, {_amount})
+        set {_s} to "s" if {_amount} > 1
+        send "{@main}You have been given {@other}%{_amount}% {@other}heart%{_s} ? ""%{@main}." to {_p}
+
+command /givehalfheart [<player>] [<integer>]:
+    permission: admin
+    permission message: &cYou don't have access to that command.
+    trigger:
+        set {_p} to arg 1 ? player
+        set {_amount} to arg 2 ? 1
+        give {_p} giveHalfHeart({_p}, {_amount})
+        set {_s} to "s" if {_amount} > 1
+        send "{@main}You have been given {@other}%{_amount}% {@other}half heart%{_s} ? ""%{@main}." to {_p}
+
+command /heartpay <player> <integer>:
+    aliases: /payhearts, /heartspay
+    usage: {@main}/heartpay (player) (amount)
+    trigger:
+        if arg 1 has not played before:
+            play sound "entity.villager.no" with volume 1 and pitch 1 to player
+            send "{@main}&lHEARTS &7That player has not played before"
+        else if {hearts::%player%} < arg 2:
+            play sound "entity.villager.no" with volume 1 and pitch 1 to player
+            send "{@main}&lHEARTS &7You do not have enough hearts."
+        else if {hearts::%player%} <= 1:
+            play sound "entity.villager.no" with volume 1 and pitch 1 to player
+            send "{@main}&lHEARTS &7You cannot pay hearts."
+        else if {hearts::%arg 1%} + arg 2 > 30:
+            play sound "entity.villager.no" with volume 1 and pitch 1 to player
+            send "{@main}&lHEARTS &7You cannot pay that much hearts to {@main}%arg 1%&7."
+        else if {hearts::%player%} - arg 2 < 1:
+            play sound "entity.villager.no" with volume 1 and pitch 1 to player
+            send "{@main}&lHEARTS &7You cannot pay that many hearts."
+        else if arg 2 < 1:
+            play sound "entity.villager.no" with volume 1 and pitch 1 to player
+            send "{@main}&lHEARTS &7Please pay at least 1 heart."
+        else:
+            set {_heart} to max health of arg 1
+            set {_a} to health of arg 1
+            remove arg 2 from {hearts::%player%}
+            add arg 2 to {hearts::%arg 1%}
+            send "{@main}&lHEARTS {@main}%player% &7paid you {@other}%arg 2% {@other}hearts&7." to arg 1
+            send "{@main}&lHEARTS &7You paid {@main}%arg 1% {@other}%arg 2% {@other}hearts&7." to player
+            scoreboard(player)
+            scoreboard(arg 1)
+            hearts(player)
+            hearts(arg 1)
+            damage player by 0.1 hearts
+            heal arg 1 if {_heart} = {_a}
+
+command /reset [<player>]:
+    permission: admin
+    permission message: &cYou don't have access to that command.
+    trigger:
+        set {_p} to arg 1 ? player
+        set {hearts::%{_p}%} to 10
+        set {_p}'s balance to 0
+        send "{@main}You have been reset." to {_p}
+        scoreboard({_p})
+        hearts({_p})

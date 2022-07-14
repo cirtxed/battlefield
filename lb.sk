@@ -1,0 +1,37 @@
+options:
+    main:<##e31b23>
+    other: <##f03e52>
+
+function updateLeaderboards():
+    updateLb("DeathTop", "deaths")
+    updateLb("KillsTop", "kills")
+    updateLb("StreakTop", "killstreak")
+    broadcast " %nl%&7&oAll leaderboards reloaded.%nl% "
+
+load:
+    updateLeaderboards()
+
+every 10 minutes:
+    updateLeaderboards()
+
+function updateLb(lb: string, lbName: string):
+    set {_linenumber} to 2
+    set {_topnumber} to 0
+
+    set {_list::*} to sorted {%{_lbName}%::*} from highest to lowest with format "@value"
+    set {_list2::*} to sorted {%{_lbName}%::*} from highest to lowest with format "@index"
+
+    loop {_list::*}:
+        set {_p} to {_list2::%loop-index%} parsed as a offline player
+        continue if "%{_p}%" is "null" 
+        add 1 to {_topnumber} and {_linenumber}
+        set {_lbstat} to loop-value
+        set {_lbstat} to "%{_lbstat}%"
+        console command "/dh lines set %{_lb}% 1 %{_linenumber}% {@main}&l##%{_topnumber}% &f%{_p}% &8• {@other}%formatc({_lbstat})% {@other}%{_lbName}%"
+        if {_topnumber} > 11:
+            stop loop
+        
+function formatc(b: text) :: text:
+	if length of {_b} > 3:
+		return "%formatc(first length of {_b} - 3 characters of {_b})%,%last 3 characters of {_b}%"
+	return {_b}

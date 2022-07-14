@@ -1,0 +1,106 @@
+options:
+    main:<##e31b23>
+    other: <##f03e52>
+    heart: ❤
+
+function regex(n: object) :: text:
+    if "%{_n}%" contains ".":
+        set {_s::*} to split "%{_n}%" at "."
+        set {_n} to "%a({_s::1})%.%last 2 characters of {_s::2}%"
+        return "%{_n} ? 0%"
+    else:
+        set {_n} to a("%{_n}%")
+        return "%{_n} ? 0%"
+        
+function a(b: text) :: text:
+    if length of {_b} > 3:
+        return "%a(first length of {_b} - 3 characters of {_b})%,%last 3 characters of {_b}%"
+    return {_b}
+
+function format(n: number, type: number) :: text:
+    if {_type} is 2:
+        set {_data} to "O,30|o,27|S,24|s,21|Q,18|q,15|T,12|B,9|M,6|K,3"
+        loop split {_data} at "|":
+            set {_s::*} to split loop-value at ","
+            {_n} >= 10 ^ {_s::2} parsed as number
+            return "%{_n} / 10 ^ {_s::2} parsed as number%%{_s::1}%"
+        return "%{_n}%" if {_n} is set, else ("0")
+    else if {_type} is 1:
+        return regex({_n}) if {_n} is set, else ("0")
+
+function progressBar(progress: Number, max: Number, bars: Integer = 10, c1: Text = "<##33adff>", c2: Text = "&7") :: Text:
+    loop {_bars} times:
+        set {_v} to (loop-value * ({_max} / {_bars})) / {_max}
+        if ({_progress} / {_max}) >= {_v}:
+            set {_bar} to colored "%{_bar} ? ""%%{_c1}%|" if ({_progress} / {_max}) >= {_v}
+            set {_bar} to colored "%{_bar} ? ""%%{_c2}%|" if ({_progress} / {_max}) < {_v}
+    return {_bar}
+
+join:
+    hearts(player)
+    scoreboard(player)
+    player has not played before:
+        set join message to "{@other}Welcome {@main}%player% {@other}to {@main}&lBATTLEFIELD &7&o(##%format(size of all offline players, 1)%&7&o)"
+    else:
+        set {_staff} to "&7&o(Staff)" if player has permission "staff"
+        set join message to "{@main}[+] {@other}%player% %{_staff} ? ""%"
+    wait 1 tick
+    teleport player to {spawn} if player has not played before
+
+disconnect:
+    set leave message to "{@main}[-] {@other}%player%"
+
+on hunger meter change:
+    "%region at player%" contains "spawn":
+        cancel event
+
+function scoreboard(p: player):
+    set title of {_p}'s scoreboard to " {@other}&l- {@main}&lBATTLEFIELD {@other}&l- "
+    set line 15 of {_p}'s scoreboard to " "
+    set line 14 of {_p}'s scoreboard to "{@main}&lACCOUNT {@other}%getHearts({_p})% {@other}{@heart}"
+    set line 13 of {_p}'s scoreboard to "  &7▸ &fName: {@other}%{_p}%"
+    set line 12 of {_p}'s scoreboard to "  &7▸ &fTeam: {@other}%{team::%{_p}%} ? "{@main}/team"%"
+    set line 11 of {_p}'s scoreboard to "  &7▸ &fMoney: &2&l$&a%format({_p}'s balance, 1)%"
+    set line 10 of {_p}'s scoreboard to "  &7▸ &fK/D: {@other}%({kills::%{_p}%}/{deaths::%{_p}%}) ? 0% {@main}(%format({kills::%{_p}%}, 1)%{@main}/%format({deaths::%{_p}%}, 1)%{@main})"
+    set line 9 of {_p}'s scoreboard to " "
+    set line 8 of {_p}'s scoreboard to "{@main}&lSERVER"
+    set line 7 of {_p}'s scoreboard to "  &7▸ &fOnline: {@other}%size of all players%{@other}/%max players%"
+    set line 6 of {_p}'s scoreboard to "  &7▸ &fUnique: {@other}##%size of all offline players%"
+    set line 5 of {_p}'s scoreboard to " "
+    set line 4 of {_p}'s scoreboard to "     &7&o/buy     /discord"
+
+chat:
+    set chat format to "%player's prefix% %player% {@main}%getHearts(player)% {@main}{@heart}&f: %message%"
+
+command /spawn:
+    trigger:
+        {teleporting::%player%} is set:
+            send "&7&oYou are already teleporting.."
+            stop
+        set {teleporting::%player%} to true
+        set {_d} to 10 seconds
+        set {_x} to x-coord of player
+        set {_y} to y-coord of player
+        set {_z} to z-coord of player
+        set {_a} to 1
+        while {teleporting::%player%} is set:
+            if x-coord of player != {_x}:
+                set {_check} to true
+            if y-coord of player != {_y}:
+                set {_check} to true
+            if z-coord of player != {_z}:
+                set {_check} to true
+            if {_check} is true:
+                send title "{@main}&lTELEPORTATION CANCELLED" with subtitle "&7You moved so teleporting was cancelled. Type /spawn again." to player for 3 seconds
+                delete {teleporting::%player%}
+                stop
+            else if {_d} < 1 second:
+                delete {teleporting::%player%}
+                teleport player to {spawn}
+                send title "{@main}&lTELEPORTED!" with subtitle "&7Teleported to spawn!" to player for 3 seconds
+            else:
+                send title "{@main}&lTELEPORTING" with subtitle "&7Teleporting to spawn.. {@main}%{_d}%" to player for 1 second
+                add 0.1 to {_a}
+                play sound "entity.villager.no" with volume 1 and pitch {_a} to player
+                remove 1 second from {_d}
+            wait 1 second
